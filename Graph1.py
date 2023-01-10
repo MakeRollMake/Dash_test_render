@@ -2,10 +2,11 @@ from dash import Dash, dcc, html, Input, Output
 import plotly.express as px
 import pandas as pd
 from plotly_calplot import calplot
+import dash_daq as daq
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, external_stylesheets=external_stylesheets)
-server = app.server
+
 
 # create the dataframe
 df = pd.read_csv('activities_clean.csv')
@@ -14,23 +15,33 @@ df = pd.read_csv('activities_clean.csv')
 df['start_date'] = pd.to_datetime(df['start_date'])
 
 # create fig1: strava activities distance (m)
-fig1 = px.scatter(df, x='start_date', y='distance', color='type', title='Strava activities distance (m)')
-fig1.update_xaxes(
-    rangeslider_visible=True,
-    rangeselector=dict(
-        buttons=list([
-            dict(count=1, label="1m", step="month", stepmode="backward"),
-            dict(count=6, label="6m", step="month", stepmode="backward"),
-            dict(count=1, label="YTD", step="year", stepmode="todate"),
-            dict(count=1, label="1y", step="year", stepmode="backward"),
-            dict(step="all")
-        ])
-    )
-)
+fig1 = px.scatter(df, x='start_date', y='distance', color='type', title='Strava activities distance (m)',
+                  labels={
+                      "type": "Activity type",
+                      "start_date": "Start Date",
+                      "distance": "Distance (m)"
+                  },
+                  )
+fig1.update_xaxes(rangeslider_visible=True,
+                  rangeselector=dict(
+                        buttons=list([
+                            dict(count=1, label="1m", step="month", stepmode="backward"),
+                            dict(count=6, label="6m", step="month", stepmode="backward"),
+                            dict(count=1, label="YTD", step="year", stepmode="todate"),
+                            dict(count=1, label="1y", step="year", stepmode="backward"),
+                            dict(step="all")
+                        ])
+                  )
+                  )
 
-# create fig2: Strava activities averate speed (km/h)
-fig2 = px.scatter(df, x='start_date', y='average_speed', color='type', title='Strava activities averate speed (km/h)')
-
+# create fig2: Strava activities average speed (km/h)
+fig2 = px.scatter(df, x='start_date', y='average_speed', color='type', title='Strava activities average speed (km/h)',
+                  labels={
+                      "type": "Activity type",
+                      "start_date": "Start Date",
+                      "average_speed": "Average Speed (km/h)"
+                  },
+                  )
 fig2.update_xaxes(
     rangeslider_visible=True,
     rangeselector=dict(
@@ -52,14 +63,70 @@ df_cal.sort_values(by='start_date', inplace=True)
 # calendar heatmap
 fig3 = calplot(df_cal, x="start_date", y="counts", years_title=True, colorscale="blues", gap=4)
 
+markdown_text = '''
+#### Using Dash/Plotly to visualize Strava Activity Data.
+
+This Dashboard is linked to the following [Github Repository](https://github.com/MakeRollMake/Dash_test_render).
+
+To download your data from strava, here is a brief overview on how to use strava API: [Getting Started with the Strava API](https://developers.strava.com/docs/getting-started/).
+
+Once you manage to get your access & refresh tokens, you can use this [WIP Strava Jupyter Notebook](https://github.com/MakeRollMake/Dash_test_render/blob/main/WIP%20Strava%20Jupyter%20Notebook.ipynb)
+'''
+
+# KPIs 1: BIKE
+total_bike_distance = round(df[(df['type'] == 'Ride')]['distance'].sum()/1000)
+bike_count = len(df[df['type'] == 'Ride'])
+
+# KPIs 2: RUN
+total_run_distance = round(df[(df['type'] == 'Run')]['distance'].sum()/1000)
+run_count = len(df[df['type'] == 'Run'])
+
+# KPIs 3: SWIM
+# add of 2km because I clearly don't swim enough :/
+total_swim_distance = round((df[(df['type'] == 'Swim')]['distance'].sum()/1000) + 2)
+swim_count = len(df[df['type'] == 'Swim'])
+
+
+green = '#68c3a3'
+blue = '#0b7fab'
 
 app.layout = html.Div(children=[
-    # All elements from the top of the page
     html.Div([
-        html.H1(children='Strava Data'),
-        html.Div(children='Using Dash/Plotly to visualize Strava Activity Data.'),
-        html.Div(children='This Dashboard is linked to the following repository:'),
-        dcc.Link(children='https://github.com/MakeRollMake/Dash_test_render', href='https://github.com/MakeRollMake/Dash_test_render'),
+        html.H1(children='STRAVA DATA VISUALIZATION', style={'textAlign': 'center', 'color': '#f46f06'}),
+        dcc.Markdown(children=markdown_text, style={'margin': '15px'}),
+    ]),
+
+    html.Div(children=[
+        daq.LEDDisplay(
+            label="Bike distance (KM)", labelPosition='top', value=total_bike_distance,
+            color=green,
+            style={'width': '29%', 'display': 'inline-block', 'margin': '15px'}),
+        daq.LEDDisplay(
+            label="Run distance (KM)", labelPosition='top', value=total_run_distance,
+            color=green,
+            style={'width': '29%', 'display': 'inline-block', 'margin': '15px'}),
+        daq.LEDDisplay(
+            label="Swim distance (KM)", labelPosition='top', value=total_swim_distance,
+            color=green,
+            style={'width': '29%', 'display': 'inline-block', 'margin': '15px'})
+    ]),
+
+    html.Div(children=[
+        daq.LEDDisplay(
+            label="Bike Activities Counter", labelPosition='top', value=bike_count,
+            color=blue,
+            style={'width': '29%', 'display': 'inline-block', 'margin': '15px'}),
+        daq.LEDDisplay(
+            label="Run Activities Counter", labelPosition='top', value=run_count,
+            color=blue,
+            style={'width': '29%', 'display': 'inline-block', 'margin': '15px'}),
+        daq.LEDDisplay(
+            label="Swim Activities Counter", labelPosition='top', value=swim_count,
+            color=blue,
+            style={'width': '29%', 'display': 'inline-block', 'margin': '15px'})
+    ]),
+
+    html.Div([
         dcc.Graph(id='graph1', figure=fig1),
         dcc.Graph(id='graph2', figure=fig2),
         dcc.Graph(id='graph3', figure=fig3)
